@@ -48,7 +48,7 @@ ds['invalid'] = ds.dn.apply(lambda dn: regex.match(dn) is None)
 with db.cursor() as cur:
     execute_values(
         cur,
-        f"""UPDATE DN2 AS D SET 
+        f"""UPDATE DN AS D SET 
         DN=E.DN,
         BDN=E.BDN,
         TLD=E.TLD,

@@ -136,10 +136,10 @@ for _, model in df_models.iterrows():
     df.reset_index(inplace=True)
 
     with db.cursor() as cursor:
-        cursor.execute('DELETE FROM public.dn2_nn WHERE nn_id = %s', [ model['id'] ])
+        cursor.execute('DELETE FROM public.DN_NN WHERE nn_id = %s', [ model['id'] ])
         execute_values(
             cursor,
-            """INSERT INTO public.dn2_nn(
+            """INSERT INTO public.DN_NN(
                     dn_id, nn_id, value, logit)
                 VALUES  %s;""",
             df[['id', 'nn_id', 'Y', 'logit']].values.tolist()

@@ -30,7 +30,7 @@ def get_llr_query(pcap_id, apply_config: utils.ApplyConfiguration):
             FLOOR(M.FN_REQ / {apply_config.wsize}) AS wnum
         FROM MESSAGES_{pcap_id} AS M
             LEFT JOIN 
-            (SELECT DN.ID, DN.DN, DN.TOP10M, DN2_NN.LOGIT FROM DN LEFT JOIN DN2_NN ON (DN.ID = DN2_NN.DN_ID AND NN_ID = {apply_config.model_id}))
+            (SELECT DN.ID, DN.DN, DN.TOP10M, DN_NN.LOGIT FROM DN LEFT JOIN DN_NN ON (DN.ID = DN_NN.DN_ID AND NN_ID = {apply_config.model_id}))
                 AS DNN ON (M.DN_ID = DNN.ID)
         {tmp_where}
         GROUP BY wnum 
@@ -49,7 +49,7 @@ def get_nx_query(pcap_id, apply_config: utils.ApplyConfiguration):
             FLOOR(M.FN_REQ / {apply_config.wsize}) AS wnum
         FROM MESSAGES_{pcap_id} AS M
             LEFT JOIN 
-            (SELECT DN.ID, DN.DN, DN2_NN.LOGIT FROM DN LEFT JOIN DN2_NN ON (DN.ID = DN2_NN.DN_ID AND NN_ID = 1))
+            (SELECT DN.ID, DN.DN, DN_NN.LOGIT FROM DN LEFT JOIN DN_NN ON (DN.ID = DN_NN.DN_ID AND NN_ID = 1))
                 AS DNN ON (M.DN_ID = DNN.ID)
         GROUP BY wnum 
         ORDER BY wnum

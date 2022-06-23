@@ -44,7 +44,7 @@ for _, malware in malwares.iterrows():
     messages = []
     for _, pcap in pcaps_mw.iterrows():
         messages += [
-            pd.read_sql(f"SELECT DN_ID, TOP10M, IS_RESPONSE, RCODE FROM MESSAGES_{pcap['id']} JOIN DN2 AS D ON DN_ID=D.ID", eng)
+            pd.read_sql(f"SELECT DN_ID, TOP10M, IS_RESPONSE, RCODE FROM MESSAGES_{pcap['id']} JOIN DN AS D ON DN_ID=D.ID", eng)
         ]
 
     messages = pd.concat(messages)

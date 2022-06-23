@@ -183,7 +183,7 @@ def get_dn_number(db):
 
 def get_dn2_number(db):
     with db.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM dn2 WHERE invalid IS FALSE")
+        cur.execute("SELECT COUNT(*) FROM DN WHERE invalid IS FALSE")
         return cur.fetchone()[0]
 
 def count_applied_windows(db, apply_id):
@@ -213,7 +213,7 @@ def get_inferenced_number(db, model_id):
 
 def get_inferenced_number2(db, model_id):
     with db.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM dn2_nn WHERE nn_id = %s", ( model_id, ))
+        cur.execute("SELECT COUNT(*) FROM DN_NN WHERE nn_id = %s", ( model_id, ))
         return cur.fetchone()[0]
 
 def max_top10m(db):
