@@ -90,7 +90,7 @@ class ApplyConfiguration:
         return [ self.model_id, self.wtype, self.top10m, self.wsize, self.windowing, self.inf ]
 
 def get_db():
-    return psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+    return psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 def get_model(db, name):
     with db.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:

@@ -5,8 +5,8 @@ import utils
 from sqlalchemy import create_engine
 import os
 
-eng = create_engine("postgresql://postgres:postgres@localhost/dns",)
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+eng = create_engine("postgresql://princio:postgres@localhost/dns",)
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 

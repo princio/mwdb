@@ -12,8 +12,8 @@ import utils
 from utils import TN, TP, FN, FP
 from matplotlib import colors
 
-eng = create_engine("postgresql://postgres:postgres@localhost/dns",)
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+eng = create_engine("postgresql://princio:postgres@localhost/dns",)
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 def cmss_to_df(cmss):
     df_cmss = pd.DataFrame()

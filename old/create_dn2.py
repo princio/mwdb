@@ -11,7 +11,7 @@ psldict = PSLdict()
 psldict.init(download=False, update=False)
 
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 ds = pd.read_sql(

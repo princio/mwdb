@@ -14,7 +14,7 @@ pp = pprint.PrettyPrinter(indent=4)
 #
 
 def run(s):
-    db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+    db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
     def f_llr(s_nosfx):

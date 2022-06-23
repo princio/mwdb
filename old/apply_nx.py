@@ -11,7 +11,7 @@ import inquirer
 
 pp = pprint.PrettyPrinter(indent=4)
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 def run(apply):
     term = Terminal()

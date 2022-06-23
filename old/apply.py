@@ -10,7 +10,7 @@ import inquirer
 
 pp = pprint.PrettyPrinter(indent=4)
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 def get_llr_query(pcap_id, wsize):

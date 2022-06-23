@@ -8,7 +8,7 @@ import numpy as np
 
 pp = pprint.PrettyPrinter(indent=4)
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 pcaps = pd.read_sql("SELECT * FROM PCAP ORDER BY qr", db)
 

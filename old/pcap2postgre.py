@@ -32,7 +32,7 @@ def pcap2postgres(pcap_path, infected=False, redo=False):
     pcap_hash = hash_(pcap_path)
     print("Hashed.")
 
-    db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+    db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
     cur = db.cursor()
 
     try:

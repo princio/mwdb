@@ -6,7 +6,7 @@ import psycopg2
 from pandas.io import json
 import argparse, utils
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 def run(apply):
     measures = {}

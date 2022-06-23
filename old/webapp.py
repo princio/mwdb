@@ -44,10 +44,10 @@ CORS(app)
 DIR_CSV = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'csv')
 
 eng = create_engine(
-    "postgresql://postgres:postgres@localhost/dns",
+    "postgresql://princio:postgres@localhost/dns",
 )
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 @app.route('/csv/<string:filename>')

@@ -27,7 +27,7 @@ app = Flask(__name__)
 CORS(app)
 DIR_CSV = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'csv')
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 with open('/home/princio/Desktop/malware_detection/nn/mwdb/functions_output/configs.json') as fp:

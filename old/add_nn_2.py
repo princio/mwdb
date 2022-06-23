@@ -17,7 +17,7 @@ pslremove_order = [
 ]
 
 
-db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
 df_dn = pd.read_sql(

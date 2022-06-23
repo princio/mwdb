@@ -70,7 +70,7 @@ PGresult * update(const char *query) {
 int main() {
   setvbuf(stdout, NULL, _IONBF, 0);
   conn =
-      PQconnectdb("host=localhost dbname=dns user=postgres password=postgres");
+      PQconnectdb("host=localhost dbname=dns user=princio password=postgres");
 
   if (PQstatus(conn) == CONNECTION_BAD) {
 

@@ -114,6 +114,6 @@ class Model:
 if __name__ == "__main__":
     import psycopg2
 
-    db = psycopg2.connect("host=localhost dbname=dns user=postgres password=postgres")
+    db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
     print(pd.read_sql("SELECT * FROM nns", db).to_markdown(index=False))
