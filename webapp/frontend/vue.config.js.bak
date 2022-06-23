@@ -1,0 +1,8 @@
+// vue.config.js
+module.exports = {
+    chainWebpack: config => {
+      config.externals({
+        'danfojs': 'danfojs'
+      })
+    }
+  }

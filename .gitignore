@@ -1,0 +1,5 @@
+backup001
+
+__pycache__/
+functions_output/
+**/node_modules/
