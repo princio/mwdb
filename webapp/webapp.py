@@ -12,8 +12,8 @@ import numpy as np
 
 import sys, os
 sys.path.append('../')
-from utils import DGAS, DGAS0, MODEL_NAME2ID, ROOT_DIR, TP, TN
-from function_p import get_cms_relative
+from utils import DGAS, DGAS0, DGASALL, FN, FP, MODEL_NAME2ID, ROOT_DIR, TP, TN
+from function_p import get_cms_absolute, get_cms_relative
 
 
 models_names = {
@@ -30,7 +30,7 @@ DIR_CSV = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'csv')
 db = psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
 
 
-with open('/home/princio/Desktop/malware_detection/nn/mwdb/functions_output/configs.json') as fp:
+with open('/home/princio/Repo/princio/mwdb/functions_output_old/configs.json') as fp:
     configs = json.load(fp)
 NTH = configs['nth']
 configs = configs['configs']
@@ -106,8 +106,8 @@ def get_apply_hash():
 def get_cm():
     _hash_ = request.get_json()['hash']
 
-    _path_csv = os.path.join(ROOT_DIR, f'./functions_output/f/{_hash_}.csv')
-    _path_pkl = os.path.join(ROOT_DIR, f'./functions_output/f/{_hash_}.pickle')
+    _path_csv = os.path.join(ROOT_DIR, f'./functions_output_old/f/{_hash_}.csv')
+    _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_old/f/{_hash_}.pickle')
     
     df_f = pd.read_csv(_path_csv)
 
@@ -116,15 +116,25 @@ def get_cm():
 
     ths = np.linspace(df_f.wvalue.min(), df_f.wvalue.max(), num=NTH, dtype=np.float32)
     
-    cms_ths_rel = get_cms_relative(cms_ths)
+    cms_ths_rel = get_cms_absolute(cms_ths)
 
     return {
         'ths': ths.tolist(),
         'cms': {
+            'n': int(cms_ths_rel[TN][0] + cms_ths_rel[FP][0]),
+            'p': {
+                dga: int(cms_ths_rel[FN][dga][0] + cms_ths_rel[TP][dga][0])
+                for dga in DGASALL
+            },
             'tn': cms_ths_rel[TN].tolist(),
+            'fp': cms_ths_rel[FP].tolist(),
+            'fn': [
+                cms_ths_rel[FN][dga].tolist()
+                for dga in DGASALL
+            ],
             'tp': [
                 cms_ths_rel[TP][dga].tolist()
-                for dga in DGAS0
+                for dga in DGASALL
             ]
         }
     }

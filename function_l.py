@@ -18,6 +18,8 @@ def __test_1(cms_ths):
     cm = cms_ths[0]
     n = cm[0] + cm[1]
     p = sum([cm[2][dga] + cm[3][dga] for dga in utils.DGAS])
+
+    print(cm)
     
     for cm in cms_ths:
         if cm[0] + cm[1] != n:

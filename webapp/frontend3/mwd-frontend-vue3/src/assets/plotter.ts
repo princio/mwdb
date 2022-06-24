@@ -2,16 +2,68 @@ import * as d3 from 'd3';
 
 interface Datum001 {
   name: string;
+  hidden: boolean;
+  dga: number;
   type: 0|1;
   values: [number, number][];
 }
 
+interface SVG {
+  svg: d3.Selection<SVGGElement, Datum001, HTMLElement, any>;
+  x: d3.ScaleLinear<number, number, never>;
+  y: d3.ScaleLinear<number, number, never>;
+  data: Datum001[];
+}
+
+
+const plot_vline = (svg: SVG, th: number) => {
+  
+  svg.svg.selectAll<SVGTextElement, Datum001>('.vline_value')
+    .transition()
+    .duration(1000)
+    .attr('x', svg.x(th))
+    .attr('y', (d) => svg.y(d.values[th][1]))
+    .text((d) => `${(d.values[th][1]).toFixed(2)}`);
+
+  svg.svg.select('.vline')
+    .transition()
+    .duration(1000)
+    .attr("x1", svg.x(th))
+    .attr("y1", svg.y(0))
+    .attr("x2", svg.x(th))
+    .attr("y2", svg.y(1));
+
+}
+
+
 const plot_scatter =
     function(
         div_id: string, ths: number[],
-        cms0: {tn: number[], tp: [number[], number[], number[]]},
-        cms1: {tn: number[], tp: [number[], number[], number[]]}) {
+        cms0: {n: number, p: number[], tn: number[], tp: [number[], number[], number[]]},
+        cms1: {n: number, p: number[], tn: number[], tp: [number[], number[], number[]]}) : SVG {
+
+  let data = [{}] as Datum001[];
+  let data2 = [{}] as Datum001[];
+
   d3.select(`#${div_id}`).select('svg').remove();
+
+  d3.selectAll(".checkbox_dga_class").on("change", (_event) => {
+    const dga = +_event.target.value;
+    
+    area.selectAll(`.dga_selector_${dga}`)
+      .transition()
+      .duration(2000)
+      .style("visibility", () => (_event.target.checked) ? "visible" : "hidden");
+  });
+
+  d3.selectAll(".checkbox_type_class").on("change", (_event) => {
+    const type = +_event.target.value;
+    
+    area.selectAll(`.type_selector_${type}`)
+      .transition()
+      .duration(2000)
+      .style("visibility", () => (_event.target.checked) ? "visible" : "hidden");
+  });
 
   const margin = {top: 10, right: 100, bottom: 30, left: 30},
         width = 2 * (460 - margin.left - margin.right),
@@ -26,7 +78,7 @@ const plot_scatter =
           .attr(
               'transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
-  var clip = svg.append('defs')
+  svg.append('defs')
                  .append('svg:clipPath')
                  .attr('id', 'clip')
                  .append('svg:rect')
@@ -37,55 +89,35 @@ const plot_scatter =
 
   var area = svg.append('g').attr('clip-path', 'url(#clip)')
 
-  const dgas = ['dga_0', 'dga_1', 'dga_2'];
+  const dgas = ['dga_all', 'dga_0', 'dga_1', 'dga_2'];
 
   const myColor =
       d3.scaleOrdinal().domain(dgas).range(['blue', 'orange', 'red']);
 
-  let data = [{}] as Datum001[];
-  let data2 = [{}] as Datum001[];
-  let data_indexs = {};
-
   if (cms0 !== undefined) {
     data = dgas.map((dga, index_dga) => ({
                       name: dga,
+                      dga: index_dga,
                       type: 0,
+                      hidden: false,
                       values: ths.map((th, index) => ([
-                                        index, cms0.tp[index_dga][index]
+                                        index, cms0.tp[index_dga][index] / cms0.p[index_dga]
                                       ] as [number, number]))
                     }));
   }
   if (cms1 !== undefined) {
     data2 = dgas.map((dga, index_dga) => ({
                        name: dga,
+                       dga: index_dga,
                        type: 1,
+                       hidden: false,
                        values: ths.map((th, index) => ([
-                                         index, cms1.tp[index_dga][index]
+                                         index, cms1.tp[index_dga][index] / cms1.p[index_dga]
                                        ] as [number, number]))
                      }));
     data = [...data, ...data2];
   }
 
-  // let data = [] as [number, number][];
-  // let data_indexes = [] as {name: string, dga: string, cms: number}[];
-
-  // if (cms0 !== undefined) {
-  //   dgas.forEach((dga, index_dga) => {
-  //     data_indexes.push({ name: dga, cms: 0, dga });
-  //     data = [ ...data, ...ths.map((th, index) => ([index,
-  //     cms0.tp[index_dga][index]] as [number, number]))];
-  //   });
-  // }
-  // if (cms1 !== undefined) {
-  //   dgas.forEach((dga, index_dga) => {
-  //     data_indexes.push({ name: dga, cms: 1, dga });
-  //     data = [ ...data, ...ths.map((th, index) => ([index,
-  //     cms1.tp[index_dga][index]] as [number, number]))];
-  //   });
-  // }
-
-  // const x = d3.scaleLinear().domain([ths[0], ths[ths.length - 1]]).range([0,
-  // width]);
   const x = d3.scaleLinear().domain([0, 200]).range([0, width]);
 
   const xSVG = svg.append('g')
@@ -104,11 +136,10 @@ const plot_scatter =
       .data(data)
       .enter()
       .append('path')
-      .attr('class', 'myArea')
+      .attr('id', (d, dga) => `line_${d.dga}_${d.type}`)
+      .attr('class', (d, dga) => `type_selector_${d.type} dga_selector_${d.dga} line_dga_type`)
       .attr('d', (d) => line(d.values))
       .attr('fill-opacity', .0)
-      // .attr("fill", "#69b3a2")
-      // .attr('d', (d) => areaGenerator(d.values))
       .attr('stroke', (d) => myColor(d.name) as string)
       .style('stroke-width', 1)
       .style('stroke-dasharray', (d, i) => [('0, 0'), ('3, 3')][d.type]);
@@ -118,17 +149,42 @@ const plot_scatter =
     (width) * 0.6
   ];
 
-  area.selectAll('myLegends')
+  area.selectAll('vline_value')
+      .data(data)
+      .enter()
+      .append('text')
+      .attr('class', d => `vline_value type_selector_${d.type} dga_selector_${d.dga}`)
+      .attr('x', x(50))
+      .attr('y', (d) => y(d.values[50][1]))
+      .style('fill', (d) => myColor(d.name) as string)
+      .text((d) => `${(d.values[50][1]).toFixed(2)}`)
+      .style('stroke-width', 0.5)
+      .attr('text-anchor', 'center')
+      .style('font-size', '10px');
+
+  area.selectAll('myLegend')
       .data(data)
       .enter()
       .append('text')
       .attr('class', 'myLegend')
+      .attr('class', (d) => `type_selector_${d.type} dga_selector_${d.dga}`)
       .attr('x', d => x_pos[d.type])
       .attr('y', (d) => y(d.values[Math.floor(x.invert(x_pos[d.type]))][1]))
-      .style('fill', (d) => myColor(d.name) as string)
       .text((d) => `${d.name}/${d.type}`)
+      .style('fill', (d) => myColor(d.name) as string)
       .attr('text-anchor', 'center')
       .style('font-size', '10px');
+    
+  area
+    .append("line")
+    .attr('class', 'vline')
+    .attr("x1", x(50))
+    .attr("y1", y(0))
+    .attr("x2", x(50))
+    .attr("y2", y(1))
+    .style("stroke-width", 1)
+    .style("stroke", "grey")
+    .style("fill", "none");
 
   // BRUSH ////////////////////////
 
@@ -158,7 +214,7 @@ const plot_scatter =
 
     xSVG.transition().duration(1000).call(d3.axisBottom(x))
 
-    area.selectAll<SVGPathElement, Datum001>('.myArea')
+    area.selectAll<SVGPathElement, Datum001>('.line_dga_type')
         .transition()
         .duration(1000)
         .attr('d', (d) => line(d.values));
@@ -183,7 +239,7 @@ const plot_scatter =
 
     xSVG.transition().call(d3.axisBottom(x));
 
-    area.selectAll<SVGPathElement, Datum001>('.myArea')
+    area.selectAll<SVGPathElement, Datum001>('.line_dga_type')
         .transition()
         .duration(200)
         .attr('d', (d) => line(d.values));
@@ -202,7 +258,15 @@ const plot_scatter =
 
   // BRUSH ////////////////////////
 
-  return;
+  return {
+    svg,
+    x,
+    y,
+    data
+  };
 }
 
-export {plot_scatter};
+export {
+  plot_vline,
+  plot_scatter
+};

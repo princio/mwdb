@@ -1,5 +1,5 @@
 backup001
 
 __pycache__/
-functions_output/
+functions_output*/
 **/node_modules/

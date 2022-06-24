@@ -95,7 +95,7 @@ def gen_configs():
 
 if __name__ == "__main__":
 
-    nth = 200
+    nth = 50
 
     th2s = [ 0.25, 0.5, 0.75 ]
     

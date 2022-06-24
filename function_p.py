@@ -45,6 +45,23 @@ def cms_to_df(cms):
 
     return df_cms
 
+
+def get_cms_absolute(cms):
+    """
+    Return NTH confusion matrix in that format:
+    [ TN, FP, [ FNall, FN0, FN1, FN2 ], [ TPall, TP0, TP1, TP2 ] ]
+    """
+
+    fn_all = np.asarray([ sum([ cm[FN][dga] for dga in utils.DGAS0]) for cm in cms ])
+    tp_all = np.asarray([ sum([ cm[TP][dga] for dga in utils.DGAS0]) for cm in cms ])
+
+    return [
+        np.asarray([ cm[TN] for cm in cms ]),
+        np.asarray([ cm[FP] for cm in cms ]),
+        [ fn_all ] + [ np.asarray([ cm[FN][dga] for cm in cms ]) for dga in utils.DGAS0 ],
+        [ tp_all ] + [ np.asarray([ cm[TP][dga] for cm in cms ]) for dga in utils.DGAS0 ]
+    ]
+
 def get_cms_relative(cms):
     """
     Return NTH confusion matrix in that format:

@@ -1,8 +1,8 @@
 <script lang="ts">
 import axios from "axios";
 import { defineComponent } from "vue";
-import Plotly from "plotly";
-import { plot_scatter } from "../assets/plotter";
+import { plot_scatter, plot_vline } from "../assets/plotter";
+import * as d3 from "d3";
 
 type ReplaceValue = ["llr" | "nx", [number, number], [string, string]];
 interface Configs {
@@ -24,7 +24,11 @@ interface Config {
 interface CMS {
   ths: number[];
   cms: {
+    n: number;
+    p: number[];
     tn: number[];
+    fp: number[];
+    fn: [number[], number[], number[]];
     tp: [number[], number[], number[]];
   };
 }
@@ -59,7 +63,9 @@ export default defineComponent({
       hash_1: null,
       cms_0: {} as CMS,
       cms_1: {} as CMS,
+      svg: undefined as any,
       ths_measures: {},
+      th_chosen: 0,
       convert_lambda: {
         0: 0,
         1: 1,
@@ -149,7 +155,12 @@ export default defineComponent({
           })
         ).data;
 
-        plot_scatter("plot_1", this.cms_0.ths, this.cms_0.cms, this.cms_1.cms);
+        this.svg = plot_scatter(
+          "plot_1",
+          this.cms_0.ths,
+          this.cms_0.cms,
+          this.cms_1.cms
+        );
       },
       deep: true,
     },
@@ -175,9 +186,19 @@ export default defineComponent({
           })
         ).data;
 
-        plot_scatter("plot_1", this.cms_0.ths, this.cms_0.cms, this.cms_1.cms);
+        this.svg = plot_scatter(
+          "plot_1",
+          this.cms_0.ths,
+          this.cms_0.cms,
+          this.cms_1.cms
+        );
       },
       deep: true,
+    },
+    th_chosen: {
+      handler(th: number) {
+        plot_vline(this.svg, th);
+      },
     },
   },
 });
@@ -185,6 +206,26 @@ export default defineComponent({
 
 <template>
   <div class="configs">
+    <div v-for="dga in [0, 1, 2, 3]" :key="`checkbox_dga_${dga}`">
+      <input
+        type="checkbox"
+        class="checkbox_dga_class"
+        :name="`checkbox_dga_${dga}`"
+        :value="dga"
+        checked="true"
+      />
+      {{ dga }}
+    </div>
+    <div v-for="type in [0, 1]" :key="`checkbox_type_${type}`">
+      <input
+        type="checkbox"
+        class="checkbox_type_class"
+        :name="`checkbox_type_${type}`"
+        :value="type"
+        checked="true"
+      />
+      {{ type }}
+    </div>
     <table v-if="all_configs.models !== undefined" class="center">
       <thead>
         <tr>
@@ -274,7 +315,49 @@ export default defineComponent({
       <div id="plot_1"></div>
     </div>
     {{ integrals0 }}
-    <br/>
+    <br />
+    {{ integrals1 }}
+    <br />
+    <input type="range" min="0" max="199" v-model="th_chosen" />{{ th_chosen }}
+    <div v-if="cms_0.ths">
+      <table>
+        <tbody>
+          <tr>
+            <td>{{ cms_0.cms.tn[th_chosen] }}</td>
+            <td>{{ cms_0.cms.fp[th_chosen] }}</td>
+          </tr>
+          <tr>
+            <td>
+              {{
+                cms_0.cms.fn[0][th_chosen] +
+                cms_0.cms.fn[1][th_chosen] +
+                cms_0.cms.fn[2][th_chosen]
+              }}
+            </td>
+            <td>
+              {{
+                cms_0.cms.tp[0][th_chosen] +
+                cms_0.cms.tp[1][th_chosen] +
+                cms_0.cms.tp[2][th_chosen]
+              }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <table v-for="dga of [0, 1, 2]" :key="`cm_0_${dga}`">
+        <tbody>
+          <tr>
+            <td>{{ cms_0.cms.tn[th_chosen] }}</td>
+            <td>{{ cms_0.cms.fp[th_chosen] }}</td>
+          </tr>
+          <tr>
+            <td>{{ cms_0.cms.fn[dga][th_chosen] }}</td>
+            <td>{{ cms_0.cms.tp[dga][th_chosen] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <br />
     {{ integrals1 }}
   </div>
 </template>
