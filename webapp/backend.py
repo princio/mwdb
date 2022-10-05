@@ -13,7 +13,7 @@ import numpy as np
 import sys, os
 sys.path.append('../')
 from utils import DGAS, DGAS0, DGASALL, FN, FP, MODEL_NAME2ID, ROOT_DIR, TP, TN
-from function_p import get_cms_absolute, get_cms_relative
+from function_p import get_cms_absolute, get_cms_absolute_mergingDGA_1_2, get_cms_relative
 
 
 models_names = {
@@ -116,7 +116,7 @@ def get_cm():
 
     ths = np.linspace(df_f.wvalue.min(), df_f.wvalue.max(), num=NTH, dtype=np.float32)
     
-    cms_ths_rel = get_cms_absolute(cms_ths)
+    cms_ths_rel = get_cms_absolute_mergingDGA_1_2(cms_ths)
 
     return {
         'ths': ths.tolist(),
