@@ -23,7 +23,13 @@ MODEL_NAME2ID = {
     'tld': 10,
     'nx': 'nx'
 }
-DGASALL = [ 0, 1, 2, 3 ]
+### DGAS0:
+### 0: dga=2 and dga=1 and dga=0
+### 1: dga=1 and dga=0
+### 2: dga=2 and dga=0
+
+DGASALL = [ 0, 1, 2 ]
+
 DGAS0 = [ 0, 1, 2 ]
 DGAS = [ 1, 2 ]
 CDGAS = { 0: 0, 1: 1, 3: 2 }
