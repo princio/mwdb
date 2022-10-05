@@ -4,6 +4,24 @@ import { defineComponent } from "vue";
 import { plot_scatter, plot_vline } from "../assets/plotter";
 import * as d3 from "d3";
 
+export type TPTN = {
+  p: boolean;
+  n: boolean;
+};
+type Metric = {
+  ac: boolean;
+  pr: boolean;
+  re: boolean;
+  f1: boolean;
+  roc: boolean;
+};
+interface PlotConfig {
+  tp: TPTN;
+  metric: Metric;
+  dga: [boolean, boolean, boolean];
+  plots: [boolean, boolean];
+}
+
 type ReplaceValue = ["llr" | "nx", [number, number], [string, string]];
 interface Configs {
   models: string[];
@@ -45,8 +63,24 @@ export default defineComponent({
   data: function () {
     return {
       all_configs: {} as Configs,
+      metrics: ["ac", "pr", "re", "f1", "roc"] as (keyof Metric)[],
+      plot_config: {
+        tp: {
+          p: true,
+          n: false,
+        },
+        metric: {
+          ac: false,
+          pr: false,
+          re: false,
+          f1: false,
+          roc: true,
+        },
+        dga: [true, false, false],
+        plots: [true, true],
+      } as PlotConfig,
       config_0: {
-        model: "icann",
+        model: "none",
         wsize: 500,
         windowing: "both",
         top10m: [0, 0],
@@ -86,16 +120,21 @@ export default defineComponent({
       }
 
       const int = [0, 0, 0];
+      const int2 = [0, 0, 0];
       for (let i = 0; i < this.cms_0.ths.length; ++i) {
         for (let dga = 0; dga < 3; ++dga) {
+          // e' inutile che prendo l'80% dei buoni e il 2% dei cattivi (accuracy?)
+          const _min = Math.min(
+            this.cms_0.cms.tn[i],
+            this.cms_0.cms.tp[dga][i]
+          );
           int[dga] +=
-            this.cms_0.cms.tn[i] < this.cms_0.cms.tp[dga][i]
-              ? this.cms_0.cms.tn[i]
-              : this.cms_0.cms.tp[dga][i];
+            (this.cms_0.cms.tn[i] + this.cms_0.cms.tp[dga][i]) /
+            (this.cms_0.cms.n + this.cms_0.cms.p[dga]);
         }
       }
 
-      return int;
+      return { int, int2 };
     },
     integrals1() {
       if (!this.cms_1.ths) {
@@ -103,16 +142,20 @@ export default defineComponent({
       }
 
       const int = [0, 0, 0];
+      const int2 = [0, 0, 0];
       for (let i = 0; i < this.cms_1.ths.length; ++i) {
         for (let dga = 0; dga < 3; ++dga) {
+          const _min = Math.min(
+            this.cms_1.cms.tn[i],
+            this.cms_1.cms.tp[dga][i]
+          );
           int[dga] +=
-            this.cms_1.cms.tn[i] < this.cms_1.cms.tp[dga][i]
-              ? this.cms_1.cms.tn[i]
-              : this.cms_1.cms.tp[dga][i];
+            (this.cms_1.cms.tn[i] + this.cms_1.cms.tp[dga][i]) /
+            (this.cms_1.cms.n + this.cms_1.cms.p[dga]);
         }
       }
 
-      return int;
+      return { int, int2 };
     },
   },
   methods: {
@@ -206,25 +249,66 @@ export default defineComponent({
 
 <template>
   <div class="configs">
-    <div v-for="dga in [0, 1, 2, 3]" :key="`checkbox_dga_${dga}`">
-      <input
-        type="checkbox"
-        class="checkbox_dga_class"
-        :name="`checkbox_dga_${dga}`"
-        :value="dga"
-        checked="true"
-      />
-      {{ dga }}
+    <div class="row">
+      <div style="margin: 0 10px">
+        <input
+          type="checkbox"
+          class="checkbox_tp_p"
+          :name="`checkbox_tp_p`"
+          :value="plot_config.tp.p"
+          :checked="plot_config.tp.p"
+        />
+        P
+      </div>
+      <div style="margin: 0 10px">
+        <input
+          type="checkbox"
+          class="checkbox_tp_n"
+          :name="`checkbox_tp_n`"
+          :value="plot_config.tp.n"
+          :checked="plot_config.tp.n"
+        />
+        N
+      </div>
+      <div
+        v-for="dga in [0, 1, 2]"
+        :key="`checkbox_dga_${dga}`"
+        style="margin: 0 10px"
+      >
+        <input
+          type="checkbox"
+          class="checkbox_dga_class"
+          :name="`checkbox_dga_${dga}`"
+          :value="dga"
+          :checked="plot_config.dga[dga]"
+        />
+        {{ ["all", "vDGA=1", "vDGA=2"][dga] }}
+      </div>
     </div>
-    <div v-for="type in [0, 1]" :key="`checkbox_type_${type}`">
-      <input
-        type="checkbox"
-        class="checkbox_type_class"
-        :name="`checkbox_type_${type}`"
-        :value="type"
-        checked="true"
-      />
-      {{ type }}
+    <div class="row" style="margin: 0 10px">
+      <div>
+        <select class="select_metric" :name="`select_metric`" :value="'pr'">
+          <option
+            v-for="metric in ['ac', 'pr', 're', 'f1', 'roc']"
+            :key="`select_metric_${metric}`"
+            :value="metric"
+          >
+            {{ metric }}
+          </option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin: 0 10px">
+      <div v-for="_type in [0, 1]" :key="`checkbox_type_${_type}`">
+        <input
+          type="checkbox"
+          class="checkbox_type_class"
+          :name="`checkbox_type_${_type}`"
+          :value="`Plot ${_type}`"
+          :checked="plot_config.plots[_type]"
+        />
+        {{ ["show 1st plot", "show 2nd plot"][_type] }}
+      </div>
     </div>
     <table v-if="all_configs.models !== undefined" class="center">
       <thead>
@@ -314,19 +398,28 @@ export default defineComponent({
     <div class="plots">
       <div id="plot_1"></div>
     </div>
-    {{ integrals0 }}
+    integral plot 1 = {{ integrals0 }}
     <br />
-    {{ integrals1 }}
+    integral plot 2 = {{ integrals1 }}
     <br />
     <input type="range" min="0" max="199" v-model="th_chosen" />{{ th_chosen }}
     <div v-if="cms_0.ths">
-      <table>
+      <table style="border: 1px solid black">
+        <thead>
+          <tr>
+            <th></th>
+            <th>N</th>
+            <th>P</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
+            <td>N</td>
             <td>{{ cms_0.cms.tn[th_chosen] }}</td>
             <td>{{ cms_0.cms.fp[th_chosen] }}</td>
           </tr>
           <tr>
+            <td>P</td>
             <td>
               {{
                 cms_0.cms.fn[0][th_chosen] +
@@ -366,10 +459,16 @@ export default defineComponent({
 .plots {
   display: flex;
   flex-direction: row;
+  justify-content: center;
   width: 100%;
 }
+.row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
 .plots > div {
-  width: 40%;
+  width: 100%;
 }
 .active {
   background-color: lightskyblue;
