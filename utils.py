@@ -33,6 +33,14 @@ MODEL_NAME2ID = {
     'tld': 10,
     'nx': 'nx'
 }
+
+MODEL_ID2NAME = {
+    7: 'icann',
+    8: 'none',
+    9: 'private',
+    10: 'tld',
+    'nx': 'nx'
+}
 ### DGAS0:
 ### 0: dga=2 and dga=1 and dga=0
 ### 1: dga=1 and dga=0

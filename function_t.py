@@ -92,10 +92,39 @@ if __name__ == "__main__":
         configs = json.load(fp)
 
     hashes = [ hash for hash in configs['configs'] ]
-    
-    for _hash in hashes:
-        a = Apply(_hash)
-        print(max(a.ths) - min(a.ths))
 
+    np.seterr(invalid='ignore')
+    
+    model2name = utils.model_id2name(db)
+    th2 = 0.8
+    f1s = []
+    for _hash in hashes:
+        apply = Apply(_hash)
+        f1s.append([
+            _hash,
+            utils.MODEL_ID2NAME[apply.config.model_id],
+            apply.config.top10m,
+            apply.config.wsize,
+            apply.config.wtype,
+            apply.config.inf,
+            apply.config.windowing,
+            sum(apply.f1score.all > th2) / 200
+            ]
+        )
+        pass
+
+    columns = [
+        'hash',
+        'model_id',
+        'top10m',
+        'wsize',
+        'wtype',
+        'inf',
+        'windowing',
+        f'f1_{th2}'
+    ]
+
+    pd.DataFrame(f1s, columns=columns).sort_values(by=f'f1_{th2}').to_csv(f'f1_{th2}.csv')
+    print(pd.DataFrame(f1s, columns=columns).sort_values(by=f'f1_{th2}'))
 
     pass

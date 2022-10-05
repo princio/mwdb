@@ -51,8 +51,8 @@ class PositivesDGA2:
 
     def __init__(self, positives: TPVectorDGA2Type) -> None:
         self.all = positives[0]
-        self.dga_1 = positives[0]
-        self.dga_2 = positives[0]
+        self.dga_1 = positives[1]
+        self.dga_2 = positives[2]
         pass
 
     def __getitem__(self, index) -> TPVector:
@@ -203,14 +203,14 @@ class Apply:
     @property
     def recall(self) -> PositivesDGA2:
         d = {}
-        for dga in ['all', 'dga_0', 'dga_1']:
+        for dga in ['all', 'dga_1', 'dga_2']:
             d[dga] = self.cms.tp[dga] / (self.cms.tp[dga] + self.cms.fn[dga])
         return PositivesDGA2.from_dict(typing.cast(PositivesDGA2Dict, d))
     
     @property
     def precision(self) -> PositivesDGA2:
         d = {}
-        for dga in ['all', 'dga_0', 'dga_1']:
+        for dga in ['all', 'dga_1', 'dga_2']:
             d[dga] = self.cms.tp[dga] / (self.cms.tp[dga] + self.cms.fp)
 
         return PositivesDGA2.from_dict(typing.cast(PositivesDGA2Dict, d))
@@ -218,7 +218,7 @@ class Apply:
     @property
     def accuracy(self) -> PositivesDGA2:
         d = {}
-        for dga in ['all', 'dga_0', 'dga_1']:
+        for dga in ['all', 'dga_1', 'dga_2']:
             d[dga] = self.cms.tp[dga] / ((self.cms.tp[dga] + self.cms.fn[dga]) + self.cms.fp)
 
         return PositivesDGA2.from_dict(typing.cast(PositivesDGA2Dict, d))
@@ -230,7 +230,7 @@ class Apply:
         re = self.recall
         
         f1: PrecisionsMetricType = {}  # type: ignore
-        for a in [ 'tn', 'all', 'dga_1', 'dga_2']:
+        for a in [ 'all', 'dga_1', 'dga_2']:
             f1[a] = (2 * pr[a] * re[a]) / (pr[a] + re[a])
         
-        return f1
+        return PositivesDGA2.from_dict(typing.cast(PositivesDGA2Dict, f1))
