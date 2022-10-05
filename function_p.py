@@ -49,17 +49,31 @@ def cms_to_df(cms):
 def get_cms_absolute(cms):
     """
     Return NTH confusion matrix in that format:
-    [ TN, FP, [ FNall, FN0, FN1, FN2 ], [ TPall, TP0, TP1, TP2 ] ]
+    [ TN, FP, [ FNall, FN1, FN2 ], [ TPall, TP1, TP2 ] ]
     """
-
-    fn_all = np.asarray([ sum([ cm[FN][dga] for dga in utils.DGAS0]) for cm in cms ])
-    tp_all = np.asarray([ sum([ cm[TP][dga] for dga in utils.DGAS0]) for cm in cms ])
 
     return [
         np.asarray([ cm[TN] for cm in cms ]),
         np.asarray([ cm[FP] for cm in cms ]),
-        [ fn_all ] + [ np.asarray([ cm[FN][dga] for cm in cms ]) for dga in utils.DGAS0 ],
-        [ tp_all ] + [ np.asarray([ cm[TP][dga] for cm in cms ]) for dga in utils.DGAS0 ]
+        [ np.asarray([ cm[FN][dga] for cm in cms ]) for dga in [ 0, 1, 2, 3 ] ],
+        [ np.asarray([ cm[TP][dga] for cm in cms ]) for dga in [ 0, 1, 2, 3 ] ]
+    ]
+
+
+
+def get_cms_absolute_mergingDGA_1_2(cms):
+    """
+    Return NTH confusion matrix in that format:
+    [ TN, FP, [ FNall, FN0, FN1, FN2 ], [ TPall, TP0, TP1, TP2 ] ]
+    """
+
+    cms_abs =  get_cms_absolute(cms)
+    
+    return [
+        cms_abs[TN],
+        cms_abs[FP],
+        [ cms_abs[FN][0], cms_abs[FN][1] + cms_abs[FN][2], cms_abs[FN][3] ],
+        [ cms_abs[TP][0], cms_abs[TP][1] + cms_abs[TP][2], cms_abs[TP][3] ]
     ]
 
 def get_cms_relative(cms):
