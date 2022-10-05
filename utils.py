@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import List, Tuple
+import json
+import typing
 import psycopg2
 import psycopg2.extras
 import hashlib
@@ -8,6 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 import pickle
+from Apply import ApplyConfiguration, CMVectorizedDGA2Type
 
 """
  7=ICANN
@@ -15,6 +18,13 @@ import pickle
  9=PRIVATE
 10=TLD
 """
+
+TN = 0
+FP = 1
+FN = 2
+TP = 3
+
+ROOT_DIR = '.'
 
 MODEL_NAME2ID = {
     'icann': 7,
@@ -34,67 +44,8 @@ DGAS0 = [ 0, 1, 2 ]
 DGAS = [ 1, 2 ]
 CDGAS = { 0: 0, 1: 1, 3: 2 }
 
-TN = 0
-FP = 1
-FN = 2
-TP = 3
-
 ROOT_DIR = Path(__file__).parent
 
-@dataclass
-class ApplyConfiguration:
-    name: str
-    model_id: str
-    wtype: str
-    top10m: Tuple[bool, int]
-    wsize: int
-    windowing: str
-    inf: Tuple[int, int]
-    pass
-
-    @staticmethod
-    def from_dict(dict):
-        return ApplyConfiguration(
-            name=dict['name'] if 'name' in dict else None,
-            model_id=dict['model_id'],
-            wtype=dict['wtype'],
-            top10m=tuple(dict['top10m']),
-            wsize=dict['wsize'],
-            windowing=dict['windowing'],
-            inf=tuple(dict['inf'])
-        )
-    
-    def to_dict(self):
-        d = dict(
-            name=self.name,
-            model_id=self.model_id,
-            wtype=self.wtype,
-            top10m=self.top10m,
-            wsize=self.wsize,
-            windowing=self.windowing,
-            inf=self.inf
-        )
-        if self.wtype == 'nx':
-            d['inf'] = ( -20, 20 )
-            d['model_id'] = 'nx %0.1f, %0.1f' % self.inf
-
-        return d
-
-    def __hash__(self):
-        sha = hashlib.md5()
-        seed = repr((
-            self.model_id,
-            self.wtype,
-            self.top10m,
-            self.wsize,
-            self.windowing,
-            self.inf
-        )).encode('utf-8')
-        sha.update(seed)
-        return sha.hexdigest()
-    
-    def tolist(self):
-        return [ self.model_id, self.wtype, self.top10m, self.wsize, self.windowing, self.inf ]
 
 def get_db():
     return psycopg2.connect("host=localhost dbname=dns user=princio password=postgres")
@@ -130,7 +81,7 @@ def get_apply(db, fn: ApplyConfiguration):
                 (top10m=%s OR top10m IS NULL)       AND
                 (pinf=%s   OR pinf IS NULL)         AND
                 (ninf=%s   OR ninf IS NULL)""",
-            [ fn.name, fn.wsize, fn.windowing, fn.wtype, fn.model_id, fn.top10m, fn.pinf, fn.ninf ])
+            [ fn.name, fn.wsize, fn.windowing, fn.wtype, fn.model_id, fn.top10m, fn.pinf, fn.ninf ]) # type: ignore
         res = cur.fetchone()
         return res['id'] if res is not None else None
     
@@ -149,7 +100,7 @@ def get_apply_byname(db, name):
             apply['top10m'],
             apply['wsize'],
             apply['windowing'],
-            apply['pinf'],
+            apply['pinf'], # type: ignore
             apply['ninf']
         )
 
@@ -249,7 +200,7 @@ def load(config_hash, nth=200):
     cms = os.path.join(ROOT_DIR, f'./functions_output/f/{config_hash}.pickle')
     if os.path.exists(cms):
         with open(cms, 'rb') as f:
-            cms_ths = pickle.load(f)
+            cms_ths = typing.cast(CMVectorizedDGA2Type, pickle.load(f))
 
     for i, cm in enumerate(cms_ths):
         cm2 = [ 0, 0, [ 0, 0, 0 ], [ 0, 0, 0 ] ]
