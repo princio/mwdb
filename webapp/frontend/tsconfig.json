@@ -4,8 +4,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "components/*": [
+          "src/components/*"
+      ]
     }
+    , "lib": ["ES2019"]
   },
 
   "references": [
