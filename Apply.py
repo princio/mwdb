@@ -174,25 +174,72 @@ class ApplyConfiguration:
 
 class Apply:
     def __init__(self, hash: str) -> None:
+        self.hash = hash
+
         with open('functions_output_old/configs.json', 'r') as fp:
             configs = json.load(fp)
         self.config: ApplyConfiguration = ApplyConfiguration.from_dict(configs['configs'][hash])
 
-        _path_csv = os.path.join(ROOT_DIR, f'./functions_output_old/f/{hash}.csv')
+        # windows: index,wlen,wvalue,wnum,dga,pcap_id
+        self.windows_3dga = pd.read_csv(os.path.join(ROOT_DIR, f'./functions_output_old/f/{hash}.csv'), index_col=0)
+        self.windows = pd.read_csv(os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{hash}.2dga.csv'), index_col=0)
+
+        self.ths = np.linspace(self.windows.wvalue.min(), self.windows.wvalue.max(), num=configs['nth'], dtype=np.float32)
+
         _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_old/f/{hash}.pickle')
-        
-        df_f = pd.read_csv(_path_csv)
-
-        self.ths = np.linspace(df_f.wvalue.min(), df_f.wvalue.max(), num=configs['nth'], dtype=np.float32)
-
         with open(_path_pkl, 'rb') as f:
-            cms_ths = typing.cast(CMDGA3Type, pickle.load(f))
-        
-        cms = vectorize_cms_2DGA(cms_ths)
+            self.cms_pickle = typing.cast(CMDGA3Type, pickle.load(f))
+        cms = vectorize_cms_2DGA(self.cms_pickle)
+        self.cms_3dga = ConfusionMatrix(cms)
 
+        _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{hash}.vectorized.pickle')
+        with open(_path_pkl, 'rb') as f:
+            cms = typing.cast(CMVectorizedDGA2Type, pickle.load(f))
         self.cms = ConfusionMatrix(cms)
 
-        
+        pass
+
+    def convert_2DGA(self):
+
+        old = self.windows.copy()
+
+        dga = self.windows.dga.where(self.windows.dga != 2, 1)
+        dga = dga.where(dga != 3, 2)
+
+        self.windows.dga = self.windows.dga.where(self.windows.dga == dga, dga)
+
+        _path_csv = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{self.hash}.2dga.csv')
+
+        tmp = pd.concat([ old.dga, self.windows.dga], axis=1, keys=[ 'old', 'new'])
+        if not all(tmp[tmp['old'] == 3]['new'] == 2):
+            raise Exception('dga 3 not all converted to 2')
+        if not all(tmp[tmp['old'] == 2]['new'] == 1):
+            raise Exception('dga 2 not all converted to 1')
+        tmp_rest = tmp[(tmp['old'] != 2) & (tmp['old'] != 3)]
+        if not all(tmp_rest['new'] == tmp_rest['old']):
+            raise Exception('some not-to-change value has been changed')
+
+        self.windows.to_csv(_path_csv)
+
+        _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{self.hash}.vectorized.pickle')
+
+        cms = vectorize_cms_2DGA(self.cms_pickle)
+        with open(_path_pkl, 'wb') as f:
+            pickle.dump(cms, f)
+
+        pass
+
+    def verify(self):
+
+        if not all(self.cms_3dga.tp.all == self.cms.tp.all):
+            raise Exception('\'all\' not the same')
+
+        if not all(self.cms_3dga.tp.dga_1 == self.cms.tp.dga_1):
+            raise Exception('\'dga_1\' not the same')
+
+        if not all(self.cms_3dga.tp.dga_2 == self.cms.tp.dga_2):
+            raise Exception('\'dga_2\' not the same')
+
 
         pass
 
