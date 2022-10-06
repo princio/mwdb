@@ -10,7 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 import pickle
-from Apply import ApplyConfiguration, CMVectorizedDGA2Type
+from Apply import ApplyConfiguration, CMVectorizedType
 
 """
  7=ICANN
@@ -208,7 +208,7 @@ def load(config_hash, nth=200):
     cms = os.path.join(ROOT_DIR, f'./functions_output/f/{config_hash}.pickle')
     if os.path.exists(cms):
         with open(cms, 'rb') as f:
-            cms_ths = typing.cast(CMVectorizedDGA2Type, pickle.load(f))
+            cms_ths = typing.cast(CMVectorizedType, pickle.load(f))
 
     for i, cm in enumerate(cms_ths):
         cm2 = [ 0, 0, [ 0, 0, 0 ], [ 0, 0, 0 ] ]
