@@ -62,8 +62,9 @@ class Value2DGA:
 
 
 class Metric:
-    def __init__(self, values: tuple[MetricVector, MetricVector, MetricVector]):
+    def __init__(self, values: tuple[MetricVector, MetricVector, MetricVector], round: int = 3):
         self.values = values
+        self.round = round
         pass
 
     def __getitem__(self, key):
@@ -79,7 +80,8 @@ class Metric:
     
     def __str__(self):
         if len(self.values[0]) == 1:
-            return f'( {self.values[0][0]:.2}, {self.values[1][0]:.2}, {self.values[2][0]:.2} )'
+            v = [ self.values[i][0] if self.round < 0 else round(self.values[i][0], self.round) for i in range(3) ]
+            return f'( {v[0]}, {v[1]}, {v[2]} )'
         else:
             return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
@@ -88,8 +90,8 @@ class Metric:
 
 class ConfusionMatrix:
     def __init__(self, cm: tuple[ TPVector, TPVector, Value2DGA, Value2DGA]):
-        self.tn = cm[0]
-        self.fp = cm[1]
+        self.tn: TPVector = cm[0]
+        self.fp: TPVector = cm[1]
         self.fn: Value2DGA = cm[2]
         self.tp = cm[3]
         self.n = self.tn + self.fp
@@ -97,6 +99,14 @@ class ConfusionMatrix:
             typing.cast(Value2DGA, self.fn)[dga] + typing.cast(Value2DGA, self.tp)[dga] for dga in [ 0, 1, 2 ]
         ))
         pass
+
+    def __getitem__(self, index: int):
+        return ConfusionMatrix((
+            np.asarray([ self.tn[index] ], dtype=np.int_),
+            np.asarray([ self.fp[index] ], dtype=np.int_),
+            Value2DGA(tuple( np.asarray([ self.fn[dga][index] ], dtype=np.int_) for dga in range(3) )),
+            Value2DGA(tuple( np.asarray([ self.tp[dga][index] ], dtype=np.int_) for dga in range(3) )),
+        ))
 
     @classmethod
     def from_pickle(cls, _pickle: Any):
@@ -182,7 +192,7 @@ class ConfusionMatrix:
         return Metric(tuple(v))
     
     @property
-    def ba(self):
+    def ba(self) -> Metric:
         """
         Balanced accuracy (BA) = 
             =TPR + TNR / 2
@@ -194,21 +204,21 @@ class ConfusionMatrix:
         return Metric(tuple(v))
 
     @property
-    def ppv(self):
+    def ppv(self) -> Metric:
         """
         Positive predictive value
         """
         return self.precision
     
     @property
-    def tpr(self):
+    def tpr(self) -> Metric:
         """
         True positive rate (TPR), recall, sensitivity (SEN), probability of detection, hit rate, power
         """
         return self.recall
     
     @property
-    def npv(self):
+    def npv(self) -> Metric:
         """
         Negative predictive value
         """
@@ -218,7 +228,7 @@ class ConfusionMatrix:
         return Metric(tuple(v))
     
     @property
-    def fnr(self):
+    def fnr(self) -> Metric:
         """
         Negative predictive value
         """
@@ -261,27 +271,19 @@ class ConfusionMatrix:
     def phi(self):
         """
         Balanced accuracy (BA) = 
-            = sqrt(TPR x TNR x PPV x NPV) - sqrt(FNR x FPR x FOR x FDR)
-
-            where:
-            TPR = TP / P
-            TNR = TN / N
-            PPV = TP / (TP + FP)
-            NPV = TN / (TN + FN)
-            FNR = FN / P = 1 - TPR
-            FOR = FN / (TN + FN)
-
+            A = ( TP x TN ) - ( FP x FN )
+            B = ( TP + FP ) x ( TP + FN ) x ( TN + FP ) ( TN + FN )
+            phi = A / sqrt(B)
         """
-        tpr = self.recall
         v = [ ]
         for dga in [ 0, 1, 2 ]:
-            v.append(
-                np.sqrt(
-                    self.tpr[dga] * self.tnr * self.ppv[dga] + self.npv[dga]
-                ) -
-                np.sqrt(
-                    self.fnr[dga] * self.tnr * self.ppv[dga] + self.npv[dga]
-                ))
+            A =     self.tp[dga] * self.tn
+            A = A - self.fp * self.fn[dga]
+            B =  ( self.tp[dga] + self.fp)
+            B *= ( self.tp[dga] + self.fn[dga])
+            B *= ( self.tn + self.fp)
+            B *= ( self.tn + self.fn[dga])
+            v.append(A / np.sqrt(B))   # type: ignore
         return Metric(tuple(v))
 
     def metric(self, metric_name) -> Metric:
