@@ -1,13 +1,12 @@
-import pickle
-from re import DEBUG
+import typing
 import numpy as np
 import psycopg2
 import pandas as pd
 from sqlalchemy import create_engine
-from Apply import Apply
+from Apply import Apply, Metric, MetricDatum, MetricVector
 import utils
 
-import os, json
+import json
 import pandas as pd
 import utils
 
@@ -84,7 +83,8 @@ def function_s2(df, k):
     return dfc, dfc_n
 
 
-
+def flatten(l):
+    return [item for sublist in l for item in sublist]
 
 
 if __name__ == "__main__":
@@ -96,41 +96,107 @@ if __name__ == "__main__":
     np.seterr(invalid='ignore')
     
     model2name = utils.model_id2name(db)
+    lambdas = []
     th2 = 0.8
-    f1s = []
-    for _hash in hashes:
+    columns_names = []
+    for i,_hash in enumerate(hashes):
+        print(f'{i}/{len(hashes)}')
         apply = Apply(_hash)
-        apply.verify()
-        continue
-        f1s.append([
+
+        columns = [
             _hash,
             utils.MODEL_ID2NAME[apply.config.model_id],
             apply.config.top10m,
             apply.config.wsize,
             apply.config.wtype,
             apply.config.inf,
-            apply.config.windowing,
-            sum(apply.windows.max() > th2) / 200,
-            sum(apply.windows.max() > th2) / 200,
-            sum(apply.windows.max() > th2) / 200
+            apply.config.windowing
+        ]
+        columns_names = [
+            'hash',
+            'model_id',
+            'top10m',
+            'wsize',
+            'wtype',
+            'inf',
+            'windowing'
+        ]
+
+        # columns += flatten([
+        #     # qui è diverso, 0 indica no infezione
+        #     [
+        #         int(apply.windows[apply.windows.dga == dga].wvalue.min()),
+        #         int(apply.windows[apply.windows.dga == dga].wvalue.max()),
+        #         int(apply.windows[apply.windows.dga == dga].wvalue.max() - apply.windows[apply.windows.dga == dga].wvalue.min()),
+        #         int(apply.windows[apply.windows.dga == dga].wvalue.max() - apply.windows[apply.windows.dga == dga].wvalue.min()) / 200,
+        #     ]
+        #     for dga in [ 0, 1, 2 ]
+        # ])
+
+        # columns += [
+        #     (
+        #         round(apply.windows[apply.windows.dga == 0].wvalue.min(), 2),
+        #         round(apply.windows[apply.windows.dga == 0].wvalue.max(), 2)
+        #     ),
+        #     (
+        #         round(apply.windows[apply.windows.dga == 1].wvalue.min(), 2),
+        #         round(apply.windows[apply.windows.dga == 1].wvalue.max(), 2)
+        #     ),
+        #     (
+        #         round(apply.windows[apply.windows.dga == 2].wvalue.min(), 2),
+        #         round(apply.windows[apply.windows.dga == 2].wvalue.max(), 2)
+        #     ),
+        # ]
+
+        for measure in [ 'min', 'max', 'mean' ]:
+            th = apply.windows[apply.windows.dga == 0].wvalue.min()
+            cm_th = apply.cm_th(th)
+            columns += [
+                round(th),
+                cm_th,
+                cm_th.tnr,
+                cm_th.precision,
+                cm_th.recall,
+                cm_th.f1score
             ]
-        )
+            columns_names += [
+                f'th n_{measure}',
+                f'cm n_{measure}',
+                f'tnr n_{measure}',
+                f'pr n_{measure}',
+                f're n_{measure}',
+                f'f1 n_{measure}',
+            ]
+            pass
+
+        for metric_name in [ 'accuracy', 'precision', 'f1score' ]:
+            for dga in [ 'all', 'dga_1', 'dga_2' ]:
+                metric = typing.cast(Metric[MetricVector], apply.cm.metric(metric_name))
+                columns += [
+                    np.nanmean(metric[dga]),
+                    np.sum(metric[dga] > th2) / 200,
+                ]
+                columns_names += [
+                    (dga, f'{metric_name} mean'),
+                    (dga, f'{metric_name} > {th2}'),
+                ]
+
+
+        columns += [
+            np.nanmean(apply.cm.tnr),
+            sum(typing.cast(MetricVector, apply.cm.tnr) > th2) / 200,
+        ]
+        columns_names += [
+            'tnr mean',
+            f'tnr > {th2}'
+        ]
+
+        lambdas.append(columns)
+
+        if i == 30: break
         pass
 
-    columns = [
-        'hash',
-        'model_id',
-        'top10m',
-        'wsize',
-        'wtype',
-        'inf',
-        'windowing',
-        f'f1_{th2}_all',
-        f'f1_{th2}_dga_1',
-        f'f1_{th2}_dga_2'
-    ]
-
-    pd.DataFrame(f1s, columns=columns).to_csv(f'f1_{th2}.csv')
-    print(pd.DataFrame(f1s, columns=columns))
+    pd.DataFrame(lambdas, columns=columns_names).to_csv(f'lamda_dist.csv')
+    print(pd.DataFrame(lambdas, columns=columns_names))
 
     pass

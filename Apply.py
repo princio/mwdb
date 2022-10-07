@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import pickle
-from typing import Tuple, Union
+from typing import Generic, NamedTuple, Tuple, TypeVar, Union
 import typing
 import numpy as np
 import numpy.typing as npt
@@ -19,68 +19,139 @@ FP = 1
 FN = 2
 TP = 3
 
-TPVector = npt.NDArray[Union[np.int_, np.float64]]
 
-CMType = list[ tuple[int, int, tuple[int, int, int, int], tuple[int, int, int, int] ] ]
+TPVector = npt.NDArray[np.int_]
+
+MetricVector = npt.NDArray[np.float64]
+
+IntDatum = np.int_
+
+Datum = Union[IntDatum, TPVector]
+
+MetricDatum = Union[np.float64, MetricVector]
+
+CMType = list[ tuple[IntDatum, IntDatum, tuple[IntDatum, IntDatum, IntDatum, IntDatum], tuple[IntDatum, IntDatum, IntDatum, IntDatum] ] ]
 
 TPVectorType = tuple[ TPVector, TPVector, TPVector ]
 
 CMVectorizedType = tuple[ TPVector, TPVector, TPVectorType, TPVectorType ]
 
-class MetrixDict(TypedDict):
-    n: TPVector
-    all: TPVector
-    dga_1: TPVector
-    dga_2: TPVector
+T = TypeVar('T', IntDatum, TPVector)
+K = TypeVar('K', np.float64, MetricVector)
 
-class PositivesDict(TypedDict):
-    all: TPVector
-    dga_1: TPVector
-    dga_2: TPVector
 
-class Positives:
-    all: TPVector
-    dga_1: TPVector
-    dga_2: TPVector
-
-    def __init__(self, positives: TPVectorType) -> None:
-        self.all = positives[0]
-        self.dga_1 = positives[1]
-        self.dga_2 = positives[2]
+class Value2DGA(Generic[T]):
+    def __init__(self, values: tuple[T, T, T]):
+        self.values = values
         pass
 
-    def __getitem__(self, index) -> TPVector:
-        if (type(index) == str):
-            return { 'all': self.all, 'dga_1': self.dga_1, 'dga_2': self.dga_2}[index]
-        return [self.all, self.dga_1, self.dga_2][index]
+    def __getitem__(self, key):
+        if type(key) == str:
+            index = { 'all': 0, 'dga_1': 1, 'dga_2': 2}[typing.cast(str, key)]
+        else:
+            index = typing.cast(int, key)
+        return self.values[index]
     
     @classmethod
-    def init2(cls, all: TPVector, dga_1: TPVector, dga_2: TPVector):
+    def init2(cls, all: T, dga_1: T, dga_2: T):
         return cls((all, dga_1, dga_2))
-
-    @classmethod
-    def from_dict(cls, dict_: PositivesDict):
-        return cls((dict_['all'], dict_['dga_1'], dict_['dga_2']))
+    
+    def __str__(self):
+        print(self.values[0])
+        return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
     pass
 
-class Metric:
-    def __init__(self, n: TPVector, all: TPVector, dga_1: TPVector, dga_2: TPVector) -> None:
-        self.n: TPVector = n
-        self.p: Positives = Positives.init2(all, dga_1, dga_2)
+# class Metric(Generic[K]):
+#     def __init__(self, data: tuple[ T, T, T ]) -> None:
+#         self.p: Value2DGA[T] = Value2DGA[T].init2(data[0], data[1], data[2])
+
+#     def __getitem__(self, index):
+#         return self.p[index]
+    
+#     def __str__(self):
+#         return self.p.__str__()
+
+class Metric(Generic[K]):
+    def __init__(self, values: tuple[T, T, T]):
+        self.values = values
+        pass
+
+    def __getitem__(self, key):
+        if type(key) == str:
+            index = { 'all': 0, 'dga_1': 1, 'dga_2': 2}[typing.cast(str, key)]
+        else:
+            index = typing.cast(int, key)
+        return self.values[index]
     
     @classmethod
-    def from_dict(cls, _d: MetrixDict):
-        return cls(_d['n'], _d['all'], _d['dga_1'], _d['dga_2'])
+    def init2(cls, all: T, dga_1: T, dga_2: T):
+        return cls((all, dga_1, dga_2))
+    
+    def __str__(self):
+        return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
-class ConfusionMatrix:
-    def __init__(self, cm: CMVectorizedType):
-        self.data = []
+    pass
+    
+
+class ConfusionMatrix(Generic[T]):
+    def __init__(self, cm: tuple[ T, T, Value2DGA[T], Value2DGA[T]]):
         self.tn = cm[0]
         self.fp = cm[1]
-        self.fn = Positives(cm[2])
-        self.tp = Positives(cm[3])
+        self.fn = cm[2]
+        self.tp = cm[3]
+        pass
 
+    def __str__(self):
+        return f'{self.tn} {self.fp} {self.fn} {self.tp}'
+
+    @property
+    def tnr(self) -> MetricDatum:
+        return np.round(self.tn / (self.tn + self.fp), 2)
+
+    @property
+    def recall(self) -> Metric[K]:
+        v = []
+        for dga in [ 0, 1, 2 ]:
+            v.append(self.tp[dga] / (self.tp[dga] + self.fn[dga]))
+            v[dga] = np.round(v[dga], 2)
+        return Metric[K](tuple(v))
+    
+    @property
+    def precision(self) -> Metric[K]:
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(self.tp[dga] / (self.tp[dga] + self.fp))
+            v[dga] = np.round(v[dga], 2)
+        return Metric[K](tuple(v))
+    
+    @property
+    def accuracy(self) -> Metric[K]:
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            den = ((self.tp[dga] + self.fn[dga]) + self.fp)
+            v.append(self.tp[dga] / den)
+            v[dga] = np.round(v[dga], 2)
+        return Metric[K](tuple(v))
+
+    
+    @property
+    def f1score(self) -> Metric[K]:
+        pr = self.precision
+        re = self.recall
+        
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            den = (pr[dga] + re[dga])
+            v.append((2 * pr[dga] * re[dga]) / den)
+            v[dga] = np.round(v[dga], 2)
+        
+        return Metric[K](tuple(v))
+
+    def metric(self, metric_name) -> Metric[K]:
+        return getattr(self, metric_name)
+
+    pass
 
 @dataclass
 class ApplyConfiguration:
@@ -153,45 +224,33 @@ class Apply:
 
         _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{hash}.vectorized.pickle')
         with open(_path_pkl, 'rb') as f:
-            self.cms = ConfusionMatrix(typing.cast(CMVectorizedType, pickle.load(f)))
+            self.cm = ConfusionMatrix[TPVector](pickle.load(f))
 
         pass
 
-    @property
-    def tnr(self) -> TPVector:
-        return self.cms.tn / (self.cms.tn + self.cms.fp)
+    def cm_th(self, th):
+        df = self.windows
+        wnum = {
+            'legit': sum(df.dga == 0),
+            'all': sum(df.dga > 0),
+            'dga_1': sum(df.dga == 1),
+            'dga_2': sum(df.dga == 2),
+        }
 
-    @property
-    def recall(self) -> Positives:
-        d = {}
-        for dga in ['all', 'dga_1', 'dga_2']:
-            d[dga] = self.cms.tp[dga] / (self.cms.tp[dga] + self.cms.fn[dga])
-        return Positives.from_dict(typing.cast(PositivesDict, d))
-    
-    @property
-    def precision(self) -> Positives:
-        d = {}
-        for dga in ['all', 'dga_1', 'dga_2']:
-            d[dga] = self.cms.tp[dga] / (self.cms.tp[dga] + self.cms.fp)
+        tn = np.int_(sum((df.dga == 0) & (df.wvalue <= th)))
+        fp = np.int_(wnum['legit'] - tn)
 
-        return Positives.from_dict(typing.cast(PositivesDict, d))
-    
-    @property
-    def accuracy(self) -> Positives:
-        d = {}
-        for dga in ['all', 'dga_1', 'dga_2']:
-            d[dga] = self.cms.tp[dga] / ((self.cms.tp[dga] + self.cms.fn[dga]) + self.cms.fp)
+        df_tp = df[(df.dga > 0) & (df.wvalue > th)]
 
-        return Positives.from_dict(typing.cast(PositivesDict, d))
+        tp = np.zeros(3, dtype=np.int_)
+        fn = np.zeros(3, dtype=np.int_)
+        for vdga, dga in enumerate([ 'all', 'dga_1', 'dga_2' ]):
+            if dga == 0:
+                tp[vdga] = np.int_(df_tp.shape[0])
+                fn[vdga] = np.int_(wnum[dga] - df_tp.shape[0])
+            else:
+                tp[vdga] = np.int_(sum(df_tp.dga == vdga))
+                fn[vdga] = np.int_(wnum[dga] - tp[vdga])
+            pass
 
-    
-    @property
-    def f1score(self) -> Positives:
-        pr = self.precision
-        re = self.recall
-        
-        f1: PrecisionsMetricType = {}  # type: ignore
-        for a in [ 'all', 'dga_1', 'dga_2']:
-            f1[a] = (2 * pr[a] * re[a]) / (pr[a] + re[a])
-        
-        return Positives.from_dict(typing.cast(PositivesDict, f1))
+        return ConfusionMatrix[np.int_](( tn, fp, Value2DGA[np.int_](tuple(fn)), Value2DGA[np.int_](tuple(tp)) ))
