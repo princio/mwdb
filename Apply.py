@@ -36,12 +36,8 @@ TPVectorType = tuple[ TPVector, TPVector, TPVector ]
 
 CMVectorizedType = tuple[ TPVector, TPVector, TPVectorType, TPVectorType ]
 
-T = TypeVar('T', IntDatum, TPVector)
-K = TypeVar('K', np.float64, MetricVector)
-
-
-class Value2DGA(Generic[T]):
-    def __init__(self, values: tuple[T, T, T]):
+class Value2DGA:
+    def __init__(self, values: tuple[TPVector, TPVector, TPVector]):
         self.values = values
         pass
 
@@ -53,27 +49,20 @@ class Value2DGA(Generic[T]):
         return self.values[index]
     
     @classmethod
-    def init2(cls, all: T, dga_1: T, dga_2: T):
+    def init2(cls, all: TPVector, dga_1: TPVector, dga_2: TPVector):
         return cls((all, dga_1, dga_2))
 
     def __str__(self):
-        print(self.values[0])
-        return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
+        if len(self.values[0]) == 1:
+            return f'( {self.values[0][0]}, {self.values[1][0]}, {self.values[2][0]} )'
+        else:
+            return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
     pass
 
-# class Metric(Generic[K]):
-#     def __init__(self, data: tuple[ T, T, T ]) -> None:
-#         self.p: Value2DGA[T] = Value2DGA[T].init2(data[0], data[1], data[2])
 
-#     def __getitem__(self, index):
-#         return self.p[index]
-    
-#     def __str__(self):
-#         return self.p.__str__()
-
-class Metric(Generic[K]):
-    def __init__(self, values: tuple[T, T, T]):
+class Metric:
+    def __init__(self, values: tuple[MetricVector, MetricVector, MetricVector]):
         self.values = values
         pass
 
@@ -85,75 +74,74 @@ class Metric(Generic[K]):
         return self.values[index]
     
     @classmethod
-    def init2(cls, all: T, dga_1: T, dga_2: T):
+    def init2(cls, all: MetricVector, dga_1: MetricVector, dga_2: MetricVector):
         return cls((all, dga_1, dga_2))
     
     def __str__(self):
-        if type(self.values[0]) == np.float64:
-            return f'( {self.values[0]:.2}, {self.values[1]:.2}, {self.values[2]:.2} )'
+        if len(self.values[0]) == 1:
+            return f'( {self.values[0][0]:.2}, {self.values[1][0]:.2}, {self.values[2][0]:.2} )'
         else:
             return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
     pass
     
 
-class ConfusionMatrix(Generic[T]):
-    def __init__(self, cm: tuple[ T, T, Value2DGA[T], Value2DGA[T]]):
+class ConfusionMatrix:
+    def __init__(self, cm: tuple[ TPVector, TPVector, Value2DGA, Value2DGA]):
         self.tn = cm[0]
         self.fp = cm[1]
-        self.fn: Value2DGA[T] = cm[2]
+        self.fn: Value2DGA = cm[2]
         self.tp = cm[3]
         self.n = self.tn + self.fp
-        if type(self.fn[0]) == IntDatum:
-            self.p = Value2DGA[np.int_](tuple(
-                typing.cast(Value2DGA[IntDatum], self.fn)[dga] + typing.cast(Value2DGA[IntDatum], self.tp)[dga] for dga in [ 0, 1, 2 ]
-            ))
-        else:
-            self.p = Value2DGA[np.int_](tuple(
-                typing.cast(Value2DGA[TPVector], self.fn)[dga][0] + typing.cast(Value2DGA[TPVector], self.fn)[dga][0] for dga in [ 0, 1, 2 ]
-            ))
+        self.p = Value2DGA(tuple(
+            typing.cast(Value2DGA, self.fn)[dga] + typing.cast(Value2DGA, self.tp)[dga] for dga in [ 0, 1, 2 ]
+        ))
         pass
 
     @classmethod
     def from_pickle(cls, _pickle: Any):
-        tn = typing.cast(T, _pickle[0])
-        fp = typing.cast(T, _pickle[1])
-        fn = Value2DGA[T](_pickle[2])
-        tp = Value2DGA[T](_pickle[3])
+        tn = typing.cast(TPVector, _pickle[0])
+        fp = typing.cast(TPVector, _pickle[1])
+        fn = Value2DGA(_pickle[2])
+        tp = Value2DGA(_pickle[3])
         return cls((tn, fp, fn, tp))
 
 
     def __str__(self):
-        return f'{self.tn} {self.fp} {self.fn} {self.tp}'
+        if len(self.tn) == 1:
+            return f'{self.tn[0]} {self.fp[0]} {self.fn} {self.tp}'
+        else:
+            return f'{self.tn} {self.fp} {self.fn} {self.tp}'
+
 
     @property
     def tnr(self) -> MetricDatum:
-        return np.round(self.tn / (self.tn + self.fp), 2)
+        return self.tn / (self.tn + self.fp)
 
     @property
-    def recall(self) -> Metric[K]:
+    def recall(self) -> Metric:
         v = []
         for dga in [ 0, 1, 2 ]:
             v.append(self.tp[dga] / (self.tp[dga] + self.fn[dga]))
-        return Metric[K](tuple(v))
+        return Metric(tuple(v))
     
     @property
-    def precision(self) -> Metric[K]:
+    def precision(self) -> Metric:
         v = [ ]
         for dga in [ 0, 1, 2 ]:
             v.append(self.tp[dga] / (self.tp[dga] + self.fp))
-        return Metric[K](tuple(v))
+        return Metric(tuple(v))
     
     @property
-    def accuracy(self) -> Metric[K]:
+    def accuracy(self) -> Metric:
         v = [ ]
         for dga in [ 0, 1, 2 ]:
             den = ((self.tp[dga] + self.fn[dga]) + self.fp)
             v.append(self.tp[dga] / den)
-        return Metric[K](tuple(v))
+        return Metric(tuple(v))
 
     @property
-    def f1score(self) -> Metric[K]:
+    def f1score(self) -> Metric:
         pr = self.precision
         re = self.recall
         
@@ -162,10 +150,10 @@ class ConfusionMatrix(Generic[T]):
             den = (pr[dga] + re[dga])
             v.append((2 * pr[dga] * re[dga]) / den)
         
-        return Metric[K](tuple(v))
+        return Metric(tuple(v))
     
     @property
-    def plr(self) -> Metric[K]:
+    def plr(self) -> Metric:
         """
         Positive likelihood ratio (LR+)
             = TPR/FPR
@@ -177,9 +165,126 @@ class ConfusionMatrix(Generic[T]):
         for dga in [ 0, 1, 2 ]:
             v.append(tpr[dga] / fpr)
         
-        return Metric[K](tuple(v))
+        return Metric(tuple(v))
+    
+    @property
+    def nlr(self) -> Metric:
+        """
+        Negative likelihood ratio (LR+)
+            = FNR / TNR
+            
+            where FNR = FN / P = 1 − [TPR|recall]
+        """
+        re = self.recall
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(1 - re[dga])
+        return Metric(tuple(v))
+    
+    @property
+    def ba(self):
+        """
+        Balanced accuracy (BA) = 
+            =TPR + TNR / 2
+        """
+        tpr = self.recall
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append((self.tnr + tpr[dga]) / 2)
+        return Metric(tuple(v))
 
-    def metric(self, metric_name) -> Metric[K]:
+    @property
+    def ppv(self):
+        """
+        Positive predictive value
+        """
+        return self.precision
+    
+    @property
+    def tpr(self):
+        """
+        True positive rate (TPR), recall, sensitivity (SEN), probability of detection, hit rate, power
+        """
+        return self.recall
+    
+    @property
+    def npv(self):
+        """
+        Negative predictive value
+        """
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(self.tn / (self.fn[dga] + self.tn))
+        return Metric(tuple(v))
+    
+    @property
+    def fnr(self):
+        """
+        Negative predictive value
+        """
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(1 - self.tpr[dga])
+        return Metric(tuple(v))
+    
+    @property
+    def for_(self) -> Metric:
+        """
+        False omission rate (FOR)
+        = FN / PN = 1 - NPV
+        """
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(1 - self.npv[dga])
+        return Metric(tuple(v))
+    
+    @property
+    def fdr(self) -> Metric:
+        """
+        False discovery rate (FDR)
+        = FP / PP  = 1 - PPV
+        """
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(1 - self.ppv[dga])
+        return Metric(tuple(v))
+    
+    @property
+    def fpr(self) -> MetricDatum:
+        """
+        False positive rate (FPR), probability of false alarm, fall-out
+        = FP / N = 1 - TNR
+        """
+        return 1 - self.tnr
+
+    @property
+    def phi(self):
+        """
+        Balanced accuracy (BA) = 
+            = sqrt(TPR x TNR x PPV x NPV) - sqrt(FNR x FPR x FOR x FDR)
+
+            where:
+            TPR = TP / P
+            TNR = TN / N
+            PPV = TP / (TP + FP)
+            NPV = TN / (TN + FN)
+            FNR = FN / P = 1 - TPR
+            FOR = FN / (TN + FN)
+
+        """
+        tpr = self.recall
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(
+                np.sqrt(
+                    self.tpr[dga] * self.tnr * self.ppv[dga] + self.npv[dga]
+                ) -
+                np.sqrt(
+                    self.fnr[dga] * self.tnr * self.ppv[dga] + self.npv[dga]
+                ))
+        return Metric(tuple(v))
+
+    def metric(self, metric_name) -> Metric:
         return getattr(self, metric_name)
 
     pass
@@ -255,7 +360,7 @@ class Apply:
 
         _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{hash}.vectorized.pickle')
         with open(_path_pkl, 'rb') as f:
-            self.cm = ConfusionMatrix[TPVector].from_pickle(pickle.load(f))
+            self.cm = ConfusionMatrix.from_pickle(pickle.load(f))
 
         pass
 
@@ -284,4 +389,9 @@ class Apply:
                 fn[vdga] = np.int_(wnum[dga] - tp[vdga])
             pass
 
-        return ConfusionMatrix[np.int_](( tn, fp, Value2DGA[np.int_](tuple(fn)), Value2DGA[np.int_](tuple(tp)) ))
+        return ConfusionMatrix((
+            np.asarray([ tn ], dtype=np.int_),
+            np.asarray([ fp ], dtype=np.int_),
+            Value2DGA(tuple(np.asarray([ v ], dtype=np.int_) for v in fn)),
+            Value2DGA(tuple(np.asarray([ v ], dtype=np.int_) for v in tp)),
+        ))
