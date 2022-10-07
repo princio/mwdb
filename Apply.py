@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import pickle
-from typing import Generic, NamedTuple, Tuple, TypeVar, Union
+from typing import Any, Generic, NamedTuple, Tuple, TypeVar, Union
 import typing
 import numpy as np
 import numpy.typing as npt
@@ -55,7 +55,7 @@ class Value2DGA(Generic[T]):
     @classmethod
     def init2(cls, all: T, dga_1: T, dga_2: T):
         return cls((all, dga_1, dga_2))
-    
+
     def __str__(self):
         print(self.values[0])
         return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
@@ -89,7 +89,10 @@ class Metric(Generic[K]):
         return cls((all, dga_1, dga_2))
     
     def __str__(self):
-        return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
+        if type(self.values[0]) == np.float64:
+            return f'( {self.values[0]:.2}, {self.values[1]:.2}, {self.values[2]:.2} )'
+        else:
+            return f'( {self.values[0]}, {self.values[1]}, {self.values[2]} )'
 
     pass
     
@@ -98,9 +101,27 @@ class ConfusionMatrix(Generic[T]):
     def __init__(self, cm: tuple[ T, T, Value2DGA[T], Value2DGA[T]]):
         self.tn = cm[0]
         self.fp = cm[1]
-        self.fn = cm[2]
+        self.fn: Value2DGA[T] = cm[2]
         self.tp = cm[3]
+        self.n = self.tn + self.fp
+        if type(self.fn[0]) == IntDatum:
+            self.p = Value2DGA[np.int_](tuple(
+                typing.cast(Value2DGA[IntDatum], self.fn)[dga] + typing.cast(Value2DGA[IntDatum], self.tp)[dga] for dga in [ 0, 1, 2 ]
+            ))
+        else:
+            self.p = Value2DGA[np.int_](tuple(
+                typing.cast(Value2DGA[TPVector], self.fn)[dga][0] + typing.cast(Value2DGA[TPVector], self.fn)[dga][0] for dga in [ 0, 1, 2 ]
+            ))
         pass
+
+    @classmethod
+    def from_pickle(cls, _pickle: Any):
+        tn = typing.cast(T, _pickle[0])
+        fp = typing.cast(T, _pickle[1])
+        fn = Value2DGA[T](_pickle[2])
+        tp = Value2DGA[T](_pickle[3])
+        return cls((tn, fp, fn, tp))
+
 
     def __str__(self):
         return f'{self.tn} {self.fp} {self.fn} {self.tp}'
@@ -114,7 +135,6 @@ class ConfusionMatrix(Generic[T]):
         v = []
         for dga in [ 0, 1, 2 ]:
             v.append(self.tp[dga] / (self.tp[dga] + self.fn[dga]))
-            v[dga] = np.round(v[dga], 2)
         return Metric[K](tuple(v))
     
     @property
@@ -122,7 +142,6 @@ class ConfusionMatrix(Generic[T]):
         v = [ ]
         for dga in [ 0, 1, 2 ]:
             v.append(self.tp[dga] / (self.tp[dga] + self.fp))
-            v[dga] = np.round(v[dga], 2)
         return Metric[K](tuple(v))
     
     @property
@@ -131,10 +150,8 @@ class ConfusionMatrix(Generic[T]):
         for dga in [ 0, 1, 2 ]:
             den = ((self.tp[dga] + self.fn[dga]) + self.fp)
             v.append(self.tp[dga] / den)
-            v[dga] = np.round(v[dga], 2)
         return Metric[K](tuple(v))
 
-    
     @property
     def f1score(self) -> Metric[K]:
         pr = self.precision
@@ -144,7 +161,21 @@ class ConfusionMatrix(Generic[T]):
         for dga in [ 0, 1, 2 ]:
             den = (pr[dga] + re[dga])
             v.append((2 * pr[dga] * re[dga]) / den)
-            v[dga] = np.round(v[dga], 2)
+        
+        return Metric[K](tuple(v))
+    
+    @property
+    def plr(self) -> Metric[K]:
+        """
+        Positive likelihood ratio (LR+)
+            = TPR/FPR
+        """
+        tpr = self.recall
+        fpr = self.fp / self.n
+        
+        v = [ ]
+        for dga in [ 0, 1, 2 ]:
+            v.append(tpr[dga] / fpr)
         
         return Metric[K](tuple(v))
 
@@ -224,7 +255,7 @@ class Apply:
 
         _path_pkl = os.path.join(ROOT_DIR, f'./functions_output_2dga/f/{hash}.vectorized.pickle')
         with open(_path_pkl, 'rb') as f:
-            self.cm = ConfusionMatrix[TPVector](pickle.load(f))
+            self.cm = ConfusionMatrix[TPVector].from_pickle(pickle.load(f))
 
         pass
 
