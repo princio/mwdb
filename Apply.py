@@ -1,4 +1,5 @@
 
+from calendar import c
 from dataclasses import dataclass
 import hashlib
 import json
@@ -11,6 +12,7 @@ import numpy.typing as npt
 from typing import TypedDict
 
 import pandas as pd
+from pyparsing import col
 
 ROOT_DIR = '.'
 
@@ -348,6 +350,21 @@ class ApplyConfiguration:
 
 
 class Apply:
+    """
+    A class used to represent an Animal
+
+    ...
+
+    Attributes
+    ----------
+    hash : str
+        the hash string of the apply configuration
+    windows : str
+        the DataFrame of the windows for the apply.
+        [ index, wlen, wvalue, wnum, dga, pcap_id ]
+    Methods
+    -------
+    """
     def __init__(self, hash: str) -> None:
         self.hash = hash
 
@@ -365,6 +382,53 @@ class Apply:
             self.cm = ConfusionMatrix.from_pickle(pickle.load(f))
 
         pass
+
+    def pcaps(self, th):
+        wnum = self.windows.groupby(['pcap_id', 'dga']).count().wlen.rename('wnum')
+        
+        legits = self.windows[self.windows.dga == 0]
+        tn = (legits.wvalue <= th).sum()
+        fp = legits.shape[0] - tn
+
+        infected = self.windows[self.windows.dga > 0].copy()
+        infected['tp'] = infected.wvalue > th
+        p = infected.groupby(['pcap_id', 'dga']).count().wlen  # type: ignore
+        tp = infected.groupby(['pcap_id', 'dga']).sum()['tp']  # type: ignore
+        fn = p - tp
+
+        fp = pd.Series(np.repeat(fp, tp.shape[0]), index=tp.index)
+        tn = pd.Series(np.repeat(tn, tp.shape[0]), index=tp.index)
+
+        # phi_coeff = tp * tn - fp * fn
+        # phi_coeff = phi_coeff / ((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+
+        result = pd.concat([
+            tn,
+            fp,
+            fn,
+            tp,
+            tp - fp,
+            (tp - fp) > 0,
+            # phi_coeff
+        ],
+        keys=[ 'tn', 'fp', 'fn', 'tp', 'tp - fp', 'detected' ],
+        axis=1)
+
+        detected = result.detected.reset_index().groupby('dga').sum()
+        pcaps_num_by_dga = result.detected.reset_index().groupby('dga').count()
+        undetected = detected.rsub(pcaps_num_by_dga).rename(columns={'detected': 'undetected'})
+        
+        result = pd.concat([
+            undetected.drop(columns='pcap_id'),
+            detected.drop(columns='pcap_id')
+        ], axis=1)
+
+        result.loc['all'] = result.sum()
+        result['tot'] = result.sum(axis=1)
+        result['%'] = result.detected / result.tot # ((result.detected / result.tot) * 100).astype(int)
+        result = result.T[['all', 1, 2]]
+        
+        return result.loc['%'].to_numpy().tolist()
 
     def cm_th(self, th):
         df = self.windows
